@@ -15,7 +15,7 @@ from sklearn.model_selection import KFold as KF
 from models import Conv, LSTM, GRU
 from helper_classes import Dataset
 
-with open("./SETTINGS.json") as file:
+with open("app/SETTINGS.json") as file:
     settings = json.load(file)
     
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
