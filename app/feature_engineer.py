@@ -3,7 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import seaborn as sns
 import preprocess_data as preprocess
-from load_data import read_data as rd
+from load_data import read_data
 from sklearn.linear_model import LogisticRegression
 from split_training_data import create_train_val_test_data as cd
     
@@ -44,7 +44,7 @@ def initial_feature_selection(data):
 ## tests, show imputer statistics and variance
 if __name__ == "__main__":
     # Read training data
-    data = rd("TRAIN_DATA_PATH")
+    data = read_data()
     print("data is: ", data.shape)
 
     # create train, val and test data

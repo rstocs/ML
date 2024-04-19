@@ -29,15 +29,17 @@ def read_data(filepath="../config/SETTINGS.json", key="TRAIN_DATA_PATH"):
 
 def save_features(data, categorical_features):
     # Convert columns to a set and remove 'y' and categorical features to get non-categorical features
-    all_features = set(data.columns) - {'y'}
-    non_categorical_features = list(all_features - set(categorical_features))
+    all_features = data.drop(columns=['y'])
+    print(type(all_features))
+    non_categorical_features = list(all_features.drop(columns=categorical_features).columns)
+    print("non_categorical_features", type(non_categorical_features))
 
     # insert categorical features to features.json file
     insert_features_to_json(
         {"CATEGORICAL_FEATURES": categorical_features, "NON_CATEGORICAL_FEATURES": non_categorical_features})
 
 
-def insert_features_to_json(feature_dict, filepath="../config/SETTING.json"):
+def insert_features_to_json(feature_dict, filepath="../config/features.json"):
     """
     Insert feature_key and feature_value to SETTING.json file.
     Parameters:
@@ -53,17 +55,14 @@ def insert_features_to_json(feature_dict, filepath="../config/SETTING.json"):
     try:
         with open(filepath, 'r') as file:
             data = json.load(file)
+            data.update(feature_dict)
+
+            # Reopen the file in write mode and write the updated data
+            with open(filepath, 'w') as file:
+                json.dump(data, file, indent=4)
+
     except FileNotFoundError:
-        data = {}
-
-    # iterate through each key/value pair and insert it to the json file
-    for feature_key, feature_value in feature_dict.items():
-        # Update the data with the new features list
-        data[feature_key] = feature_value  # This sets or updates the 'features' key
-
-        # Write the updated data back to the JSON file
-        with open(filepath, 'w') as file:
-            json.dump(data, file, indent=4)
+        print("File not found.")
 
 
 def describe_target(data):
@@ -117,3 +116,7 @@ if __name__ == "__main__":
 
     # prints the unique categories of all the object dtype columns
     investigate_object(data_train)
+
+    # Insert features to json
+    categorical_features = ['x5', 'x31', 'x81', 'x82']
+    save_features(data_train, categorical_features)

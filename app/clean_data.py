@@ -6,7 +6,7 @@ from sklearn.impute import SimpleImputer
 from load_data import read_data
 
 
-def clean_data(data, filepath="../config/features.json"):
+def clean_data(data, categorical_features, save_encoded_features=False):
     """
     Clean data including handling special chars and impute missing values.
     Parameters:
@@ -15,22 +15,15 @@ def clean_data(data, filepath="../config/features.json"):
     Returns:
         data_cleaned (pandas df): cleaned data
     """
-    # Load categorical feature list and non-categorical feature list from features.json file
-    try:
-        with open(filepath, 'r') as file:
-            features_list = json.load(file)
-    except FileNotFoundError:
-        print("\nFile not found")
-
     # Fix money and percents and change data type to float
     fixed_data = fix_symbol_and_data_type(data)
 
     # impute missing values from feature mean for non-categorical data
-    data_cleaned = impute_missing_values(fixed_data, data[features_list["NON_CATEGORICAL_FEATURES"]])
+    data_cleaned = encode_categorical_feature(fixed_data, data[categorical_features], save_encoded_features)
     return data_cleaned
 
 
-def encode_categorical_feature(data, categorical_features):
+def encode_categorical_feature(data, categorical_features, save_encoded_features, filepath="../config/features.json"):
     """
     Encode categorical data..
     Parameters:
@@ -39,39 +32,29 @@ def encode_categorical_feature(data, categorical_features):
     Returns:
         data (pandas df): encoded data
     """
+    encoded_features = []
     for feature in categorical_features:
         dumb = pd.get_dummies(data[feature], drop_first=True, prefix=feature, prefix_sep='_', dummy_na=True)
         data = pd.concat([data, dumb], axis=1, sort=False)
-    data = pd.concat([data, data['y']], axis=1, sort=False)
+        if save_encoded_features:
+            encoded_features.extend(dumb.columns)
+
+    # Save the encoded features names
+    if save_encoded_features:
+        try:
+            with open(filepath) as file:
+                features = json.load(file)
+                features.update({"ENCODED_FEATURES": encoded_features})
+
+                # Reopen the file in write mode and write the updated data
+                with open(filepath, 'w') as file:
+                    json.dump(features, file, indent=4)
+        except FileNotFoundError:
+            print("File not found.")
+
+    # Drop categorical features and return
+    data = data.drop(columns=categorical_features)
     return data
-
-
-def impute_missing_values(data, non_categorical_features,
-                          imputer=SimpleImputer(missing_values=np.nan, strategy='mean')):
-    """
-    Impute missing data in non-categorical features from feature mean.
-    Parameters:
-        data (pandas df): input data to be processed
-        non_categorical_features (list): list of features to be imputed
-        imputer (sklearn imputer): sklearn imputer that uses mean to impute missing values
-    Returns:
-        imputed_data (pandas df): output data after imputing missing values
-    """
-    # initialize imputed_data variables for return
-    imputed_data = None
-
-    # If imputer is not fitted, fit and transform
-    if not hasattr(imputer, 'statistics_'):
-        # Fit and impute missing data from mean
-        imputed_data = pd.DataFrame(imputer.fit_transform(data[non_categorical_features]),
-                                    columns=data[non_categorical_features].columns)
-    # If imputer is fitted, impute missing data from mean without fitting
-    else:
-        imputed_data = pd.DataFrame(imputer.transform(data[non_categorical_features]),
-                                    columns=data[non_categorical_features].columns)
-
-    # Return imputed data
-    return imputed_data
 
 
 # replace special chars and change data type
@@ -128,8 +111,22 @@ def change_data_type(data, feature, type):
 if __name__ == "__main__":
     # read_data with the correct key to retrieve the filepath
     data_train = read_data()
+    print(data_train.head())
+
+    categorical_features = []
+
+    try:
+        with open("../config/features.json") as file:
+            features = json.load(file)
+        categorical_features = features["CATEGORICAL_FEATURES"]
+    except FileNotFoundError:
+        print("File not found.")
 
     # Call
-    data_train_clean = fix_symbol_and_data_type(data_train)
+    data_train_clean = clean_data(data_train, categorical_features, save_encoded_features=True)
+    print("data train cleaned", data_train_clean.shape)
     print(data_train_clean.head())  # Print the first few rows of the dataframe
     # print(test.head())
+
+
+
