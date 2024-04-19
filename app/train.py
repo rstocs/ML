@@ -9,7 +9,22 @@ from load_data import read_data as rd
 from feature_engineer import initial_feature_selection as fs
 import model
 
-if __name__ == "__main__":
+def insert_features_to_json(filepath, selected_features):
+    # Read the existing content of the file
+    try:
+        with open(filepath, 'r') as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        data = {}
+
+    # Update the data with the new features list
+    data['SELECTED_FEATURES'] = selected_features  # This sets or updates the 'features' key
+
+    # Write the updated data back to the JSON file
+    with open(filepath, 'w') as file:
+        json.dump(data, file, indent=4)
+
+def train_model():
     # Read training data
     data = rd("TRAIN_DATA_PATH")
 
@@ -34,6 +49,9 @@ if __name__ == "__main__":
     # select features for model
     selected_features = fs(imputed_scaled_encoded_train)
 
+    # save features to feature.json file
+    insert_features_to_json("../config/features.json", selected_features)
+
     # train models with all data
     model_all = model.train_model(imputed_scaled_encoded_all, selected_features, True)
 
@@ -52,6 +70,10 @@ if __name__ == "__main__":
     print("cutoff_prob is: ", cutoff_prob)
 
     print("\nDone")
+
+
+if __name__ == "__main__":
+    train_model()
 
 
     

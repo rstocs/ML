@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import pickle
 import pandas as pd
 import json
@@ -9,37 +10,13 @@ from feature_engineer import initial_feature_selection as fs
 import model
 
 def predict_single(model, data, cutoff_prob):
-    probabilites = pd.DataFrame(model.predict(data)).rename(columns={0: 'probs'})
+    probabilities = pd.DataFrame(model.predict(data)).rename(columns={0: 'probs'})
+    data['probs'] = probabilities['probs']
+    data['business_outcome'] = np.where(data['probs'] > cutoff_prob, 1, 0)
+    return data
 
-
-def predict(result, data_X, data, cutoff_percent=0.75, show_statistics=False):
-    """
-    Make prediction from model.
-    Parameters:
-        result (BinaryResultsWrapper): a wrapper around the binary (logistic) regression results and provides various \
-        methods and attributes for accessing and analyzing the results of the logistic regression model
-        data (pandas df): imputed scaled encoded training data.
-        cutoff_percent (float): cutoff percent of prob to be considered for positive outcome.
-    Returns:
-        outcome (pandas df): trained logistic regression model with feature selected.
-        cutoff_prob (float): cutoff prob to be considered for positive outcome.
-    """
-    outcome = pd.DataFrame(result.predict(data_X)).rename(columns={0:'probs'})
-
-    # print C_statistcs and prob_bin if show_statistics is set to True
-    if show_statistics:
-        # show C_Statistics
-        c_statistics = get_c_statistics(outcome, data)
-        print(c_statistics)
-
-        # show prob_bin
-        prob_bin = get_prob_bin(outcome)
-        print(prob_bin)
-
-    # Calculate the prob at the specified cutoff percentile
-    cutoff_prob = outcome['probs'].quantile(cutoff_percent)
-
-    return outcome, cutoff_prob
+def prepare_data(data):
+    
 
 if __name__ == "__main__":
     # Read training data
@@ -63,28 +40,18 @@ if __name__ == "__main__":
     imputed_scaled_encoded_all = pd.concat([imputed_scaled_encoded_train, imputed_scaled_encoded_val])
     imputed_scaled_encoded_all = pd.concat([imputed_scaled_encoded_all, imputed_scaled_encoded_test])
 
-    # select features for model
-    selected_features = fs(imputed_scaled_encoded_train)
+    # load the model
+    with open('../models/model.pkl', 'rb') as f:
+        model = pickle.load(f)
 
-    # train models with all data
-    model_all = model.train_model(imputed_scaled_encoded_all, selected_features, True)
+    # load selected features
+    with open("../config/features.json") as file:
+        feature_config = json.load(file)
+    selected_features = feature_config["SELECTED_FEATURES"]
 
-    # Save the model
-    if not os.path.exists("../models"):
-        # If the directory does not exist, create it
-        os.makedirs("../models")
-        print("Directory models was created.")
+    data = predict_single(model, imputed_scaled_encoded_all[selected_features], cutoff_prob=0.5)
+    print("data is; ", data)
 
-    # Saving the model to a file
-    with open('../models/model.pkl', 'wb') as f:
-        pickle.dump(model_all, f)
-
-    # Get model cutoff prob
-    _, cutoff_prob = model.predict(model_all, imputed_scaled_encoded_all[selected_features], imputed_scaled_encoded_all,
-                                   .75, True)
-    print("cutoff_prob is: ", cutoff_prob)
-
-    print("\nDone")
 
 
 
